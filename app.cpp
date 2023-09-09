@@ -47,6 +47,17 @@ public:
 
 };
 
+class Operator : public Node{
+public:
+    Operator(int i , int p , string t , int v )
+        :Node (i , p , t , v){
+
+    }
+
+private:
+
+};
+
 
 class Tree {
 private:
