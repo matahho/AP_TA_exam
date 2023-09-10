@@ -10,6 +10,16 @@ using namespace std;
 #define NOT 3 
 #define XOR 4
 
+#define BITWISE 0 
+#define ARITHMETIC 1
+
+#define B 2
+#define O 8
+#define D 10
+#define H 16
+
+
+
 
 
 class Node {
@@ -34,6 +44,9 @@ public:
         }
     }
 
+    // Abstract Class
+    virtual void correctness () = 0 ;
+
     int getValue() {return value ;}
     string getType() {return type ;}
     int getIndex() {return index;}
@@ -48,14 +61,97 @@ public:
 };
 
 class Operator : public Node{
+private:
+    int mode ;
 public:
     Operator(int i , int p , string t , int v )
         :Node (i , p , t , v){
+            mode = ARITHMETIC ;
+    }
+ 
+    // Abstract Class
+    virtual void correctness () = 0 ;
 
+};
+
+class NotOperator : public Operator{
+private:
+    
+public:
+    NotOperator(int i , int p , string t , int v )
+        :Operator (i , p , t , v){}
+
+    void correctness (){
+        if (this->getChildern().size() != 1 )
+            throw invalid_argument("Wrong tree structure !");
     }
 
-private:
+};
 
+
+
+
+class AndOperator : public Operator{
+private:
+    
+public:
+    AndOperator(int i , int p , string t , int v )
+        :Operator (i , p , t , v){}
+
+    void correctness (){
+        if (this->getChildern().size() != 2 )
+
+            throw invalid_argument("Wrong tree structure !");
+    }
+
+};
+
+
+
+class OrOperator : public Operator{
+private:
+    
+public:
+    OrOperator(int i , int p , string t , int v )
+        :Operator (i , p , t , v){}
+
+    void correctness (){
+        if (this->getChildern().size() != 2 )
+            throw invalid_argument("Wrong tree structure !");
+    }
+
+};
+
+class XorOperator : public Operator{
+private:
+    
+public:
+    XorOperator(int i , int p , string t , int v )
+        :Operator (i , p , t , v){}
+
+    void correctness (){
+        // ASSUMPTION : In XOR we can have <2> or more operand  
+        if (this->getChildern().size() < 2 )
+            throw invalid_argument("Wrong tree structure !");
+    }
+
+};
+
+
+
+
+class Operand : public Node{
+public:
+    Operand(int i , int p , string t , int v )
+        :Node (i , p , t , v){
+            base = D;
+    }
+    // Abstract Class
+    void correctness (){
+        return ;
+    }
+private:
+    int base ;
 };
 
 
@@ -66,57 +162,66 @@ private:
     double calculate (Node* root);
     double operatorResult (Node* op , vector<Node*> vars);
     bool TreeCorrectness ();
+    Node* findNodeByIndex (int ind);
 
 public:
-    vector <Node> stack;
-    void push (Node n );
-    Node* findNodeByIndex (int ind);
+    // Here I used POLYMORPHISEM :)
+    vector <Node*> stack;
+    void push (int i , int p , string t , int value);
     void evaluate ();
-
-    void printTree (){
-        for (Node i : stack){
-            cout << i.getIndex() << " " << i.getParentIndex() << " " << i.getType() << " " << i.getValue()  << "\n"; 
-        }
-    }
 
 };
 
-void Tree::push(Node n ){
-    if (n.getIndex() == 0 )
-        n.setParentIndex(-1);
-    stack.push_back(n);
+void Tree::push(int i , int p , string t , int v){
+    // Here I used POLYMORPHISEM :) and ABSTRACT class
+    if (t == "input"){
+        Operand *inp = new Operand(i , p , t , v);
+        stack.push_back(inp);
+    }
+    else if (t == "operator" && v == NOT){
+        Operator *inp = new NotOperator(i , p , t , v);
+        stack.push_back(inp);
+    }
+    else if (t == "operator" && v == AND){
+        Operator *inp = new AndOperator(i , p , t , v);
+        stack.push_back(inp);
+    }
+    else if (t == "operator" && v == OR){
+        Operator *inp = new OrOperator(i , p , t , v);
+        stack.push_back(inp);
+    }
+    else if (t == "operator" && v == XOR){
+        Operator *inp = new XorOperator(i , p , t , v);
+        stack.push_back(inp);
+    }
+    
 }
 
 Node* Tree::findNodeByIndex(int ind){
     for (int i = 0; i < stack.size(); i++){
-        if (stack[i].getIndex() == ind)
-            return &stack[i];
+        if (stack[i]->getIndex() == ind)
+            return stack[i];
     }
     return NULL;
-}
-
-void Tree::evaluate(){
-    this->adjustParents();
-    this->adjustChildren();
-    this->TreeCorrectness();
-    
-
 }
 
 
 void Tree::adjustParents(){
     for (int i=0 ; i < stack.size() ; i++){
-        if (stack[i].getIndex() == 0)
-            stack[i].setParent(NULL);
-        stack[i].setParent(findNodeByIndex(stack[i].getParentIndex())) ;
+        if (stack[i]->getIndex() == 0){
+            stack[i]->setParent(NULL);
+            stack[i]->setParentIndex(-1);
+        }
+        stack[i]->setParent(findNodeByIndex(stack[i]->getParentIndex())) ;
     }
 }
+
 
 void Tree::adjustChildren(){
     for (int i=0 ; i < stack.size() ; i++){
         for (int j=0 ; j < stack.size() ; j++){
-            if (stack[j].getParent() != NULL && stack[j].getParent()->getIndex() == stack[i].getIndex() ){
-                stack[i].addChildren(&stack[j]);
+            if (stack[j]->getParent() != NULL && stack[j]->getParent()->getIndex() == stack[i]->getIndex() ){
+                stack[i]->addChildren(stack[j]);
             }
         }
     }
@@ -125,57 +230,40 @@ void Tree::adjustChildren(){
 
 bool Tree::TreeCorrectness(){
     for (int i=0 ; i < stack.size() ; i++){
-        if (stack[i].getType() == "operator"){
-            if (stack[i].getValue() == AND){
-                if (stack[i].getChildern().size() != 2)
-                    cout << "EROOR" << endl;
-            }
-            if (stack[i].getValue() == OR){
-                if (stack[i].getChildern().size() != 2)
-                    cout << "EROOR" << endl;
-            }
-            if (stack[i].getValue() == NOT){
-                if (stack[i].getChildern().size() != 1)
-                    cout << "EROOR" << endl;
-            }
-            if (stack[i].getValue() == XOR){
-                if (stack[i].getChildern().size() < 2)
-                    cout << "EROOR" << endl;
-            }
-        }
+        stack[i]->correctness();
     }
     return 1;
 }
 
 
 
-double Tree::calculate(Node* root){
-    if (root == NULL )
-        return 0;
-    if (root->isLeaf())
-        return root->getValue();
-      
+
+
+
+void Tree::evaluate(){
+    try{
+        this->adjustParents();
+        this->adjustChildren();
+        this->TreeCorrectness();
+        
+    }catch (exception &e) {
+        cout << e.what() << endl;
+    }
+    
+
 }
-
-double Tree::operatorResult (Node* op , vector<Node*> vars){
-    if (op->getType() == "operator" && op->getValue() == AND)
-        return 9.9; 
-}
-
-
 
 
 int main ()
 {  
     Tree t = Tree() ;
-    t.push(Node (0 , 100 ,"operator" , NOT));
-    t.push(Node (2 , 0 ,"operator" , AND));
-    t.push(Node (3 , 2 , "input" , 100));
-    t.push(Node (4 , 2 , "input" , 1300));
+    t.push(0 , 100 ,"operator" , XOR);
+    t.push(1 , 0 , "input" , 100);
 
 
-    t.printTree();
+
     t.evaluate();
+
 
 
 
