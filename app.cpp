@@ -24,7 +24,7 @@ using namespace std;
 
 
 class Node {
-private:
+protected:
     int index ;
     int parentIndex ;
     string type ; 
@@ -48,6 +48,7 @@ public:
     // Abstract Class
     virtual void correctness () = 0 ;
     virtual int calculate (vector<double> children) = 0 ;
+    virtual void reset(int newValue) = 0 ;
 
     int getValue() {return value ;}
     string getType() {return type ;}
@@ -60,6 +61,7 @@ public:
     vector<Node*> getChildern() {return children;}
     bool isLeaf() {return children.size() == 0 ;}
     void print(){cout << getIndex() << " " << getParent() << " " << getType() << " " << getValue() << " " << getChildern().size() ;}
+
 
 };
 
@@ -75,21 +77,20 @@ public:
         if (this->getChildern().size() != 0)
             throw invalid_argument("Wrong tree structure !");
     }
+
     int calculate(vector<double> children){return this->getValue();}
+    void reset (int newValue){value = newValue;}
 private:
     int base ;
 };
 
 
+
+
 class Operator : public Node{
 protected:
     int mode ;
-    vector<double> childrenValues (){
-        vector<double> values ; 
-        for (int i = 0 ; i < getChildern().size() ; i++)
-            values.push_back(getChildern()[i]->getValue());
-        return values;
-    }
+
 public:
     Operator(int i , int p , string t , int v )
         :Node (i , p , t , v){
@@ -99,6 +100,8 @@ public:
     // Abstract Class
     virtual void correctness () = 0 ;
     virtual int calculate(vector<double> children) = 0 ;
+
+    void reset(int newValue) {return ;}
 
 };
 
@@ -220,9 +223,10 @@ private:
     void adjustParents ();
     void adjustChildren ();
     bool TreeCorrectness ();
-    Node* findNodeByIndex (int ind);
+
 
 public:
+    Node* findNodeByIndex (int ind);
     // Here I used POLYMORPHISEM :)
     vector <Node*> stack;
     void push (int i , int p , string t , int value);
@@ -268,7 +272,7 @@ Node* Tree::findNodeByIndex(int ind){
         if (stack[i]->getIndex() == ind)
             return stack[i];
     }
-    return NULL;
+    throw invalid_argument("No Index Found");
 }
 
 
@@ -277,8 +281,8 @@ void Tree::adjustParents(){
         if (stack[i]->getIndex() == 0){
             stack[i]->setParent(NULL);
             stack[i]->setParentIndex(-1);
-        }
-        stack[i]->setParent(findNodeByIndex(stack[i]->getParentIndex())) ;
+        }else 
+            stack[i]->setParent(findNodeByIndex(stack[i]->getParentIndex())) ;
     }
 }
 
@@ -346,21 +350,30 @@ int main ()
     Tree t = Tree() ;
     t.push(0 , -1 , OPERATOR , OR);
     t.push(1 , 0 , INPUT , 5);
-    t.push(2 , 0 , OPERATOR , AND);
+    t.push(2 , 0 , INPUT , 6);
 
-    t.push(3 , 2 , INPUT , 2);
-    t.push(4 , 2 , OPERATOR , NOT);
+    // t.push(3 , 2 , INPUT , 2);
+    // t.push(4 , 2 , OPERATOR , NOT);
 
-    t.push(5 , 4 , OPERATOR , OR);
+    // t.push(5 , 4 , OPERATOR , OR);
 
-    t.push(6 , 5 , INPUT , 2);
-    t.push(7 , 5 , INPUT , 3);
+    // t.push(6 , 5 , INPUT , 2);
+    // t.push(7 , 5 , INPUT , 3);
 
     
     
 
 
     t.evaluate();
+    t.printTree();
+
+    cout << "\n\n\n";
+    cout << t.calculate(t.stack[0]) << "\n\n\n" << endl;
+
+
+    t.findNodeByIndex(1)->reset(3);
+    t.findNodeByIndex(2)->reset(10);
+
     t.printTree();
 
     cout << "\n\n\n";
