@@ -18,7 +18,8 @@ using namespace std;
 #define D 10
 #define H 16
 
-
+#define INPUT "input"
+#define OPERATOR "operator"
 
 
 
@@ -34,7 +35,7 @@ private:
 
 public:
     Node (int i , int p , string t , int v){
-        if (t == "input" || t == "operator" ) {
+        if (t == INPUT || t == OPERATOR ) {
             index = i ;
             parentIndex = p ;
             type = t ;
@@ -46,6 +47,7 @@ public:
 
     // Abstract Class
     virtual void correctness () = 0 ;
+    virtual int calculate (vector<double> children) = 0 ;
 
     int getValue() {return value ;}
     string getType() {return type ;}
@@ -57,12 +59,37 @@ public:
     void addChildren(Node* c) {children.push_back(c);}
     vector<Node*> getChildern() {return children;}
     bool isLeaf() {return children.size() == 0 ;}
+    void print(){cout << getIndex() << " " << getParent() << " " << getType() << " " << getValue() << " " << getChildern().size() ;}
 
 };
 
-class Operator : public Node{
+
+class Operand : public Node{
+public:
+    Operand(int i , int p , string t , int v )
+        :Node (i , p , t , v){
+            base = D;
+    }
+    // Abstract Class
+    void correctness (){
+        if (this->getChildern().size() != 0)
+            throw invalid_argument("Wrong tree structure !");
+    }
+    int calculate(vector<double> children){return this->getValue();}
 private:
+    int base ;
+};
+
+
+class Operator : public Node{
+protected:
     int mode ;
+    vector<double> childrenValues (){
+        vector<double> values ; 
+        for (int i = 0 ; i < getChildern().size() ; i++)
+            values.push_back(getChildern()[i]->getValue());
+        return values;
+    }
 public:
     Operator(int i , int p , string t , int v )
         :Node (i , p , t , v){
@@ -71,6 +98,7 @@ public:
  
     // Abstract Class
     virtual void correctness () = 0 ;
+    virtual int calculate(vector<double> children) = 0 ;
 
 };
 
@@ -84,6 +112,11 @@ public:
     void correctness (){
         if (this->getChildern().size() != 1 )
             throw invalid_argument("Wrong tree structure !");
+    }
+
+    int calculate (vector<double> children){
+        return (-children[0]);
+    
     }
 
 };
@@ -104,6 +137,11 @@ public:
             throw invalid_argument("Wrong tree structure !");
     }
 
+    int calculate (vector<double> childern){
+        return (childern[0] * childern[1]);
+
+    }
+
 };
 
 
@@ -120,7 +158,35 @@ public:
             throw invalid_argument("Wrong tree structure !");
     }
 
+    int calculate (vector<double> childern){
+        return (childern[0] + childern[1]);
+    }
+
 };
+
+
+double median (vector<double> children){
+
+    int n = children.size(); 
+    if (n % 2 == 0) {
+        nth_element(children.begin() , children.begin() + n / 2 , children.end());
+
+        nth_element(children.begin() , children.begin() + (n - 1) / 2 , children.end());
+  
+
+        return (double)(children[(n - 1) / 2]+ children[n / 2]) / 2.0;
+    }
+  
+
+    else {
+        nth_element(children.begin() , children.begin() + n / 2 , children.end());
+        return (double)children[n / 2];
+    }
+}
+
+
+
+
 
 class XorOperator : public Operator{
 private:
@@ -135,32 +201,24 @@ public:
             throw invalid_argument("Wrong tree structure !");
     }
 
+
+    int calculate (vector<double> childern){
+        return (median(childern));
+
+    }
+
+
 };
 
 
 
 
-class Operand : public Node{
-public:
-    Operand(int i , int p , string t , int v )
-        :Node (i , p , t , v){
-            base = D;
-    }
-    // Abstract Class
-    void correctness (){
-        return ;
-    }
-private:
-    int base ;
-};
 
 
 class Tree {
 private:
     void adjustParents ();
     void adjustChildren ();
-    double calculate (Node* root);
-    double operatorResult (Node* op , vector<Node*> vars);
     bool TreeCorrectness ();
     Node* findNodeByIndex (int ind);
 
@@ -169,28 +227,36 @@ public:
     vector <Node*> stack;
     void push (int i , int p , string t , int value);
     void evaluate ();
+    
+    int calculate(Node* root);
+
+
+    void printTree(){
+        for (Node* i : stack)
+            cout << i->getIndex() << " " << i->getParentIndex() << " " << i->getType() << " " <<i->getValue() << " " << i->getChildern().size() << endl;
+    }
 
 };
 
 void Tree::push(int i , int p , string t , int v){
     // Here I used POLYMORPHISEM :) and ABSTRACT class
-    if (t == "input"){
+    if (t == INPUT){
         Operand *inp = new Operand(i , p , t , v);
         stack.push_back(inp);
     }
-    else if (t == "operator" && v == NOT){
+    else if (t == OPERATOR && v == NOT){
         Operator *inp = new NotOperator(i , p , t , v);
         stack.push_back(inp);
     }
-    else if (t == "operator" && v == AND){
+    else if (t == OPERATOR && v == AND){
         Operator *inp = new AndOperator(i , p , t , v);
         stack.push_back(inp);
     }
-    else if (t == "operator" && v == OR){
+    else if (t == OPERATOR && v == OR){
         Operator *inp = new OrOperator(i , p , t , v);
         stack.push_back(inp);
     }
-    else if (t == "operator" && v == XOR){
+    else if (t == OPERATOR && v == XOR){
         Operator *inp = new XorOperator(i , p , t , v);
         stack.push_back(inp);
     }
@@ -237,6 +303,26 @@ bool Tree::TreeCorrectness(){
 
 
 
+int Tree::calculate(Node* root){
+    if (root == NULL)
+        throw invalid_argument("No tree Found !");
+
+    if (root->isLeaf())
+        return root->getValue();
+    
+    vector<double> res ;
+    for (Node* child : root->getChildern()){
+                res.push_back(calculate(child));
+            
+    }
+
+    return root->calculate(res);
+
+
+
+
+}
+
 
 
 
@@ -249,22 +335,36 @@ void Tree::evaluate(){
     }catch (exception &e) {
         cout << e.what() << endl;
     }
-    
-
 }
+
+
+
 
 
 int main ()
 {  
     Tree t = Tree() ;
-    t.push(0 , 100 ,"operator" , XOR);
-    t.push(1 , 0 , "input" , 100);
+    t.push(0 , -1 , OPERATOR , OR);
+    t.push(1 , 0 , INPUT , 5);
+    t.push(2 , 0 , OPERATOR , AND);
 
+    t.push(3 , 2 , INPUT , 2);
+    t.push(4 , 2 , OPERATOR , NOT);
+
+    t.push(5 , 4 , OPERATOR , OR);
+
+    t.push(6 , 5 , INPUT , 2);
+    t.push(7 , 5 , INPUT , 3);
+
+    
+    
 
 
     t.evaluate();
+    t.printTree();
 
-
+    cout << "\n\n\n";
+    cout << t.calculate(t.stack[0]) << endl;
 
 
 
